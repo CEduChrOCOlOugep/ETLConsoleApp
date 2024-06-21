@@ -111,6 +111,8 @@ namespace ETLConsoleApp.Services
                                     item.PERN = field.Value.String;
                                 else if (field.Name == Name.FIELD1)
                                     item.Field1 = field.Value.String;
+                                else if (field.Name == Name.LAST_UPDATE)
+                                    item.LastUpdate = DateTime.Parse(field.Value.String);
                                 // Add other fields as necessary
                             }
                             allData.Add(item);
@@ -167,6 +169,8 @@ namespace ETLConsoleApp.Services
                                     item.PERN = field.Value.String;
                                 else if (field.Name == Name.FIELD2)
                                     item.Field2 = field.Value.String;
+                                else if (field.Name == Name.LAST_UPDATE)
+                                    item.LastUpdate = DateTime.Parse(field.Value.String);
                                 // Add other fields as necessary
                             }
                             allData.Add(item);
@@ -208,7 +212,8 @@ namespace ETLConsoleApp.Services
                              {
                                  PERN = d1.PERN,
                                  Field1 = d1.Field1,
-                                 Field2 = d2.Field2
+                                 Field2 = d2.Field2,
+                                 LastUpdate = d1.LastUpdate > d2.LastUpdate ? d1.LastUpdate : d2.LastUpdate
                                  // Add other fields as necessary
                              };
 
@@ -223,6 +228,7 @@ namespace ETLConsoleApp.Services
                 {
                     existingRecord.Field1 = record.Field1;
                     existingRecord.Field2 = record.Field2;
+                    existingRecord.LastUpdate = record.LastUpdate;
                     // Update other fields as necessary
                 }
             }
