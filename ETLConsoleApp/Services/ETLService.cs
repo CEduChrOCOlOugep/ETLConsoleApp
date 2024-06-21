@@ -24,6 +24,8 @@ namespace ETLConsoleApp.Services
         private readonly string _encodedCredentials;
         private readonly ILogger<ETLService> _logger;
         private readonly ApplicationDbContext _dbContext;
+        private readonly string _payload1AppId;
+        private readonly string _payload2AppId;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ETLService"/> class.
@@ -41,6 +43,8 @@ namespace ETLConsoleApp.Services
             _encodedCredentials = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{username}:{password}"));
             _logger = logger;
             _dbContext = dbContext;
+            _payload1AppId = configuration["ApiSettings:AppIds:Payload1AppId"];
+            _payload2AppId = configuration["ApiSettings:AppIds:Payload2AppId"];
         }
 
         /// <summary>
@@ -90,7 +94,7 @@ namespace ETLConsoleApp.Services
             {
                 try
                 {
-                    var data = CreatePayload("payload1_appid", page, pageSize);
+                    var data = CreatePayload(_payload1AppId, page, pageSize);
                     var jsonPayload = JsonConvert.SerializeObject(data);
                     var requestContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
                     requestContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -148,7 +152,7 @@ namespace ETLConsoleApp.Services
             {
                 try
                 {
-                    var data = CreatePayload("payload2_appid", page, pageSize);
+                    var data = CreatePayload(_payload2AppId, page, pageSize);
                     var jsonPayload = JsonConvert.SerializeObject(data);
                     var requestContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
                     requestContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
