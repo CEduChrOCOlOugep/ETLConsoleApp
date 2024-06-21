@@ -8,7 +8,7 @@ private async Task<List<Payload1Response>> FetchData1Async()
     {
         try
         {
-            var data = CreatePayload(_payload1AppId, page, pageSize, "LAST_UPDATE", ">=", "20240501000000");
+            var data = CreatePayload(_payload1AppId, page, pageSize, "LAST_UPDATE", ">=", "20240601000000");
             var jsonPayload = JsonConvert.SerializeObject(data);
             var requestContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
             requestContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -130,7 +130,7 @@ private DateTime? ParseDateTime(string dateString)
         return null;
     }
 
-    if (DateTime.TryParse(dateString, out var parsedDate))
+    if (DateTime.TryParseExact(dateString, "yyyyMMddHHmmss", null, System.Globalization.DateTimeStyles.None, out var parsedDate))
     {
         return parsedDate;
     }
