@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using ETLConsoleApp.Services;
 using ETLConsoleApp.Data;
+using Microsoft.EntityFrameworkCore;
 
 class Program
 {
@@ -19,7 +21,7 @@ class Program
             })
             .ConfigureServices((context, services) =>
             {
-                services.AddHttpClient();
+                services.AddHttpClient(); // Ensure this line is present
                 services.AddDbContext<ApplicationDbContext>(options =>
                     options.UseSqlServer(context.Configuration.GetConnectionString("SqlServer")));
                 services.AddScoped<ETLService>();
