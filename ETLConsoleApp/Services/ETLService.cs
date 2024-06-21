@@ -105,6 +105,12 @@ namespace ETLConsoleApp.Services
                     response.EnsureSuccessStatusCode();
 
                     var responseData = JsonConvert.DeserializeObject<ApiResponse>(await response.Content.ReadAsStringAsync());
+                    if (responseData.Status != "S")
+                    {
+                        _logger.LogError($"Error in response status: {responseData.Status}");
+                        break;
+                    }
+
                     if (responseData.Row != null)
                     {
                         foreach (var row in responseData.Row)
@@ -163,6 +169,12 @@ namespace ETLConsoleApp.Services
                     response.EnsureSuccessStatusCode();
 
                     var responseData = JsonConvert.DeserializeObject<ApiResponse>(await response.Content.ReadAsStringAsync());
+                    if (responseData.Status != "S")
+                    {
+                        _logger.LogError($"Error in response status: {responseData.Status}");
+                        break;
+                    }
+
                     if (responseData.Row != null)
                     {
                         foreach (var row in responseData.Row)
