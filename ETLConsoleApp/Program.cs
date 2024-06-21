@@ -14,41 +14,57 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        var host = Host.CreateDefaultBuilder(args)
-            .ConfigureAppConfiguration((context, config) =>
-            {
-                config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-            })
-            .ConfigureServices((context, services) =>
-            {
-                services.AddHttpClient(); // Ensure this line is present
-                services.AddDbContext<ApplicationDbContext>(options =>
-                    options.UseSqlServer(context.Configuration.GetConnectionString("SqlServer")));
-                services.AddScoped<ETLService>();
-            })
-            .UseSerilog((context, config) =>
-            {
-                config.ReadFrom.Configuration(context.Configuration);
-            })
-            .Build();
+        // Configure Serilog
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .CreateLogger();
 
-        using (var scope = host.Services.CreateScope())
+        try
         {
-            var services = scope.ServiceProvider;
-            var etlService = services.GetRequiredService<ETLService>();
-            var logger = services.GetRequiredService<ILogger<Program>>();
+            var host = Host.CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration((context, config) =>
+                {
+                    config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                })
+                .ConfigureServices((context, services) =>
+                {
+                    services.AddHttpClient();
+                    services.AddDbContext<ApplicationDbContext>(options =>
+                        options.UseSqlServer(context.Configuration.GetConnectionString("SqlServer")));
+                    services.AddScoped<ETLService>();
+                })
+                .UseSerilog() // Use Serilog for logging
+                .Build();
 
-            try
+            using (var scope = host.Services.CreateScope())
             {
-                await etlService.RunAsync();
+                var services = scope.ServiceProvider;
+                var etlService = services.GetRequiredService<ETLService>();
+                var logger = services.GetRequiredService<ILogger<Program>>();
+
+                try
+                {
+                    await etlService.RunAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError($"Error occurred: {ex.Message}");
+                    logger.LogError(ex.StackTrace);
+                }
             }
-            catch (Exception ex)
-            {
-                logger.LogError($"Error occurred: {ex.Message}");
-                logger.LogError(ex.StackTrace);
-            }
+
+            await host.RunAsync();
         }
-
-        await host.RunAsync();
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Host terminated unexpectedly");
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
     }
 }
