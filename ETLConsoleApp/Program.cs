@@ -1,80 +1,75 @@
-using RestSharp;
-using System;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Events;
+using ETLConsoleApp.Services;
+using ETLConsoleApp.Data;
+using Microsoft.EntityFrameworkCore;
 
-public class Program
+namespace ETLConsoleApp
 {
-    public static async Task Main(string[] args)
+    class Program
     {
-        var baseUrl = "https://";
-        var apiService = new ApiService(baseUrl);
-
-        var payload = new
+        static async Task Main(string[] args)
         {
-            appid = "4",
-            pagenumber = "1",
-            pagesize = "5000",
-            filter = new
+            // Configure Serilog
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                .Enrich.FromLogContext()
+                .WriteTo.Console()
+                .CreateLogger();
+
+            try
             {
-                query = new[]
-                {
-                    new
+                var host = Host.CreateDefaultBuilder(args)
+                    .ConfigureAppConfiguration((hostingContext, config) =>
                     {
-                        fieldname = "L",
-                        operand = ">=",
-                        fieldvalue = "2"
+                        config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+                    })
+                    .ConfigureServices((context, services) =>
+                    {
+                        // Add services to the container.
+                        services.AddHttpClient();
+                        services.AddDbContext<ApplicationDbContext>(options =>
+                            options.UseSqlServer(context.Configuration.GetConnectionString("SqlServer")));
+                        services.AddScoped<ETLService>();
+
+                        // Use Serilog for logging
+                        services.AddLogging(loggingBuilder =>
+                            loggingBuilder.AddSerilog(dispose: true));
+                    })
+                    .Build();
+
+                using (var scope = host.Services.CreateScope())
+                {
+                    var services = scope.ServiceProvider;
+                    var etlService = services.GetRequiredService<ETLService>();
+                    var logger = services.GetRequiredService<ILogger<ETLService>>();
+
+                    try
+                    {
+                        await etlService.RunAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError($"Error occurred: {ex.Message}");
+                        logger.LogError(ex.StackTrace);
                     }
                 }
+
+                await host.RunAsync();
             }
-        };
-
-        var username = "yourUsername";
-        var password = "yourPassword";
-
-        RestResponse response = await apiService.SendPostRequestAsync(baseUrl, payload, username, password);
-
-        Console.WriteLine(response.Content);
-    }
-}
-
-public class ApiService
-{
-    private readonly RestClient _client;
-
-    public ApiService(string baseUrl)
-    {
-        var options = new RestClientOptions(baseUrl)
-        {
-            MaxTimeout = -1,
-        };
-        _client = new RestClient(options);
-    }
-
-    public async Task<RestResponse> SendPostRequestAsync(string url, object payload, string username, string password)
-    {
-        var request = new RestRequest(url, Method.Post);
-        var base64EncodedAuthenticationString = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{username}:{password}"));
-        
-        request.AddHeader("Authorization", $"Basic {base64EncodedAuthenticationString}");
-        request.AddHeader("Content-Type", "application/json");
-
-        var body = @$" {{
-            ""appid"": ""{payload.appid}"",
-            ""pagenumber"": ""{payload.pagenumber}"",
-            ""pagesize"": ""{payload.pagesize}"",
-            ""filter"": {{
-                ""query"": [
-                    {{
-                        ""fieldname"": ""{payload.filter.query[0].fieldname}"",
-                        ""operand"": ""{payload.filter.query[0].operand}"",
-                        ""fieldvalue"": ""{payload.filter.query[0].fieldvalue}""
-                    }}
-                ]
-            }}
-        }}";
-
-        request.AddStringBody(body, DataFormat.Json);
-
-        return await _client.ExecuteAsync(request);
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Host terminated unexpectedly");
+            }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
+        }
     }
 }
