@@ -1,71 +1,37 @@
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Serilog;
-using Serilog.Events;
-using ETLConsoleApp.Services;
-using ETLConsoleApp.Data;
-using Microsoft.EntityFrameworkCore;
 
-class Program
+public class Program
 {
-    static async Task Main(string[] args)
+    public static async Task Main(string[] args)
     {
-        // Configure Serilog
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-            .Enrich.FromLogContext()
-            .WriteTo.Console()
-            .CreateLogger();
+        var apiService = new ApiService();
 
-        try
+        var url = "https://example.com/api/endpoint";  // Full URL
+        var payload = new
         {
-            var host = Host.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration((context, config) =>
-                {
-                    config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-                })
-                .ConfigureServices((context, services) =>
-                {
-                    services.AddHttpClient();
-                    services.AddDbContext<ApplicationDbContext>(options =>
-                        options.UseSqlServer(context.Configuration.GetConnectionString("SqlServer")));
-                    services.AddScoped<ETLService>();
-                })
-                .UseSerilog() // Use Serilog for logging
-                .Build();
-
-            using (var scope = host.Services.CreateScope())
+            appid = "id",
+            pagenumber = "1",
+            pagesize = "5000",
+            filter = new
             {
-                var services = scope.ServiceProvider;
-                var etlService = services.GetRequiredService<ETLService>();
-                var logger = services.GetRequiredService<ILogger<Program>>();
-
-                try
+                query = new[]
                 {
-                    await etlService.RunAsync();
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError($"Error occurred: {ex.Message}");
-                    logger.LogError(ex.StackTrace);
+                    new
+                    {
+                        fieldname = "LAST",
+                        operand = ">=",
+                        fieldvalue = "2"
+                    }
                 }
             }
+        };
 
-            await host.RunAsync();
-        }
-        catch (Exception ex)
-        {
-            Log.Fatal(ex, "Host terminated unexpectedly");
-        }
-        finally
-        {
-            Log.CloseAndFlush();
-        }
+        var username = "yourUsername";
+        var password = "yourPassword";
+
+        IRestResponse response = await apiService.SendPostRequestAsync(url, payload, username, password);
+
+        Console.WriteLine(response.Content);
     }
 }
