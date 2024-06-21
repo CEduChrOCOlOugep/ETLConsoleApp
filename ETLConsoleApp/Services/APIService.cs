@@ -13,7 +13,7 @@ public class ApiService
 
     public async Task<IRestResponse> SendPostRequestAsync(string endpoint, object payload, string username, string password)
     {
-        var request = new RestRequest(endpoint, Method.POST);
+        var request = new RestRequest(endpoint, Method.Post);  // Correctly use Method.Post
         request.AddHeader("Content-Type", "application/json");
         
         var base64EncodedAuthenticationString = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{username}:{password}"));
