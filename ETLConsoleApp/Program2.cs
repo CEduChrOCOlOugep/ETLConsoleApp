@@ -1,11 +1,14 @@
+using System;
+using System.Threading.Tasks;
+
 public class Program
 {
     public static async Task Main(string[] args)
     {
-        var httpClient = new HttpClient();
-        var apiService = new ApiService(httpClient);
+        var baseUrl = "https://example.com/api/";
+        var endpoint = "endpoint";
+        var apiService = new ApiService(baseUrl);
 
-        var url = "https://example.com/api/endpoint";
         var payload = new
         {
             appId = "yourAppId",
@@ -19,11 +22,12 @@ public class Program
                 fieldValue = "yourFieldValue"
             }
         };
+
         var username = "yourUsername";
         var password = "yourPassword";
 
-        var response = await apiService.SendPostRequestAsync(url, payload, username, password);
+        IRestResponse response = await apiService.SendPostRequestAsync(endpoint, payload, username, password);
 
-        Console.WriteLine(response);
+        Console.WriteLine(response.Content);
     }
 }
