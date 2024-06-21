@@ -14,9 +14,6 @@ using ETLConsoleApp.Data;
 
 namespace ETLConsoleApp.Services
 {
-    /// <summary>
-    /// Service for Extract, Transform, and Load (ETL) operations.
-    /// </summary>
     public class ETLService
     {
         private readonly HttpClient _httpClient;
@@ -27,13 +24,6 @@ namespace ETLConsoleApp.Services
         private readonly string _payload1AppId;
         private readonly string _payload2AppId;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ETLService"/> class.
-        /// </summary>
-        /// <param name="httpClient">The HTTP client used for API requests.</param>
-        /// <param name="configuration">The application configuration.</param>
-        /// <param name="logger">The logger instance.</param>
-        /// <param name="dbContext">The database context.</param>
         public ETLService(HttpClient httpClient, IConfiguration configuration, ILogger<ETLService> logger, ApplicationDbContext dbContext)
         {
             _httpClient = httpClient;
@@ -47,15 +37,6 @@ namespace ETLConsoleApp.Services
             _payload2AppId = configuration["ApiSettings:AppIds:Payload2AppId"];
         }
 
-        /// <summary>
-        /// Creates the payload for the API request.
-        /// </summary>
-        /// <param name="appid">The application ID.</param>
-        /// <param name="pageNumber">The page number.</param>
-        /// <param name="pageSize">The page size.</param>
-        /// <param name="fieldname">The field name for filtering.</param>
-        /// <param name="lastUpdate">The last update date.</param>
-        /// <returns>A dictionary representing the payload.</returns>
         private Dictionary<string, object> CreatePayload(string appid, int pageNumber = 1, int pageSize = 5000, string fieldname = "LAST_UPDATE", string lastUpdate = "20240501000000")
         {
             return new Dictionary<string, object>
@@ -80,10 +61,6 @@ namespace ETLConsoleApp.Services
             };
         }
 
-        /// <summary>
-        /// Fetches data for the first payload.
-        /// </summary>
-        /// <returns>A list of <see cref="Payload1Response"/> objects.</returns>
         private async Task<List<Payload1Response>> FetchData1Async()
         {
             var allData = new List<Payload1Response>();
@@ -116,7 +93,7 @@ namespace ETLConsoleApp.Services
                                 else if (field.Name == Name.FIELD1)
                                     item.Field1 = field.Value.String;
                                 else if (field.Name == Name.LAST_UPDATE)
-                                    item.LastUpdate = DateTime.Parse(field.Value.String);
+                                    item.LastUpdate = field.Value.String != null ? DateTime.Parse(field.Value.String) : (DateTime?)null;
                                 // Add other fields as necessary
                             }
                             allData.Add(item);
@@ -138,10 +115,6 @@ namespace ETLConsoleApp.Services
             return allData;
         }
 
-        /// <summary>
-        /// Fetches data for the second payload.
-        /// </summary>
-        /// <returns>A list of <see cref="Payload2Response"/> objects.</returns>
         private async Task<List<Payload2Response>> FetchData2Async()
         {
             var allData = new List<Payload2Response>();
@@ -174,7 +147,7 @@ namespace ETLConsoleApp.Services
                                 else if (field.Name == Name.FIELD2)
                                     item.Field2 = field.Value.String;
                                 else if (field.Name == Name.LAST_UPDATE)
-                                    item.LastUpdate = DateTime.Parse(field.Value.String);
+                                    item.LastUpdate = field.Value.String != null ? DateTime.Parse(field.Value.String) : (DateTime?)null;
                                 // Add other fields as necessary
                             }
                             allData.Add(item);
@@ -196,9 +169,6 @@ namespace ETLConsoleApp.Services
             return allData;
         }
 
-        /// <summary>
-        /// Runs the ETL process: fetches data from two APIs, joins the results, and upserts the joined data into the database.
-        /// </summary>
         public async Task RunAsync()
         {
             var data1 = await FetchData1Async();
@@ -218,7 +188,6 @@ namespace ETLConsoleApp.Services
                                  Field1 = d1.Field1,
                                  Field2 = d2.Field2,
                                  LastUpdate = d1.LastUpdate > d2.LastUpdate ? d1.LastUpdate : d2.LastUpdate
-                                 // Add other fields as necessary
                              };
 
             foreach (var record in joinedData)
@@ -233,7 +202,6 @@ namespace ETLConsoleApp.Services
                     existingRecord.Field1 = record.Field1;
                     existingRecord.Field2 = record.Field2;
                     existingRecord.LastUpdate = record.LastUpdate;
-                    // Update other fields as necessary
                 }
             }
 
