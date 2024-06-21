@@ -208,7 +208,7 @@ namespace ETLConsoleApp.Services
 
             var joinedData = from d1 in data1
                              join d2 in data2 on d1.PERN equals d2.PERN
-                             select new DataIntegration
+                             select new ETLConsoleApp.Data.HCESIntegration
                              {
                                  PERN = d1.PERN,
                                  Field1 = d1.Field1,
@@ -219,10 +219,10 @@ namespace ETLConsoleApp.Services
 
             foreach (var record in joinedData)
             {
-                var existingRecord = await _dbContext.DataIntegration.FindAsync(record.PERN);
+                var existingRecord = await _dbContext.HCESIntegration.FindAsync(record.PERN);
                 if (existingRecord == null)
                 {
-                    _dbContext.DataIntegration.Add(record);
+                    _dbContext.HCESIntegration.Add(record);
                 }
                 else
                 {
