@@ -8,14 +8,22 @@ private async Task<List<Payload2Response>> FetchData2Async()
     {
         try
         {
-            var data = CreatePayload(_payload2AppId, page, pageSize, "LA", ">=", "20240601000000");
+            var data = CreatePayload(_payload2AppId, page, pageSize, "LAST_UPDATE", ">=", "20240601000000");
             var jsonPayload = JsonConvert.SerializeObject(data);
             var requestContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
             requestContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", _encodedCredentials);
 
+            _logger.LogInformation($"Sending request: {jsonPayload}");
+
             var response = await _httpClient.PostAsync(_apiBaseUrl, requestContent);
-            response.EnsureSuccessStatusCode();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Error response: {responseContent}");
+                response.EnsureSuccessStatusCode();
+            }
 
             var responseData = JsonConvert.DeserializeObject<ApiResponse>(await response.Content.ReadAsStringAsync());
             if (responseData.Status != "S")
@@ -31,22 +39,22 @@ private async Task<List<Payload2Response>> FetchData2Async()
                     var item = new Payload2Response();
                     foreach (var field in row.Field)
                     {
-                        if (field.Name == Name.PE)
+                        if (field.Name == Name.PERNR)
                             item.PERN = field.Value.String ?? string.Empty;
-                        else if (field.Name == Name.AC)
-                            item.Act = field.Value.String ?? string.Empty;
-                        else if (field.Name == Name.DY)
-                            item.Dy = field.Value.String ?? string.Empty;
-                        else if (field.Name == Name.ES)
-                            item.Es = field.Value.String ?? string.Empty;
-                        else if (field.Name == Name.LA)
-                            item.La = ParseDateTime(field.Value.String);
-                        else if (field.Name == Name.NO)
-                            item.No = field.Value.String ?? string.Empty;
-                        else if (field.Name == Name.OC)
-                            item.Oc = field.Value.String ?? string.Empty;
-                        else if (field.Name == Name.SB)
-                            item.SB = ParseDateTime(field.Value.String);
+                        else if (field.Name == Name.ACTON)
+                            item.Acton = field.Value.String ?? string.Empty;
+                        else if (field.Name == Name.DYFIN)
+                            item.Dyfin = field.Value.String ?? string.Empty;
+                        else if (field.Name == Name.ESC02)
+                            item.Esc02 = field.Value.String ?? string.Empty;
+                        else if (field.Name == Name.LAST_UPDATE)
+                            item.LastUpdate = ParseDateTime(field.Value.String);
+                        else if (field.Name == Name.NODES)
+                            item.Nodes = field.Value.String ?? string.Empty;
+                        else if (field.Name == Name.OCCCL)
+                            item.Occcl = field.Value.String ?? string.Empty;
+                        else if (field.Name == Name.SBDGT)
+                            item.Sbdgt = ParseDateTime(field.Value.String);
                         // Add other fields as necessary
                     }
                     allData.Add(item);
