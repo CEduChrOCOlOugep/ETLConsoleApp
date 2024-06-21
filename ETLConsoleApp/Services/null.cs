@@ -33,10 +33,8 @@ private async Task<List<Payload1Response>> FetchData1Async()
                     {
                         if (field.Name == Name.PERNR)
                             item.PERN = field.Value.String ?? string.Empty;
-                        else if (field.Name == Name.FIELD1)
-                            item.Field1 = field.Value.String ?? string.Empty;
-                        else if (field.Name == Name.LAST_UPDATE)
-                            item.LastUpdate = ParseDateTime(field.Value.String);
+                        else if (field.Name == Name.PERID)
+                            item.PerId = field.Value.String ?? string.Empty;
                         // Add other fields as necessary
                     }
                     allData.Add(item);
