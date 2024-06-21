@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace ETLConsoleApp.Models
 {
     /// <summary>
@@ -75,7 +69,16 @@ namespace ETLConsoleApp.Models
     public enum Name
     {
         PERID,
-        PERNR
+        PERNR,
+        ACTON,
+        DYFIN,
+        ESC02,
+        LAST_UPDATE,
+        NODES,
+        OCCCL,
+        SBDGT,
+        FIELD1,
+        FIELD2
     }
 
     /// <summary>
