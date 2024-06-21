@@ -6,14 +6,14 @@ public class ApiService
 {
     private readonly RestClient _client;
 
-    public ApiService(string baseUrl)
+    public ApiService()
     {
-        _client = new RestClient(baseUrl);
+        _client = new RestClient();
     }
 
-    public async Task<IRestResponse> SendPostRequestAsync(string endpoint, object payload, string username, string password)
+    public async Task<IRestResponse> SendPostRequestAsync(string url, object payload, string username, string password)
     {
-        var request = new RestRequest(endpoint, Method.Post);  // Correctly use Method.Post
+        var request = new RestRequest(url, Method.Post);  // Use the full URL directly
         request.AddHeader("Content-Type", "application/json");
         
         var base64EncodedAuthenticationString = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{username}:{password}"));
