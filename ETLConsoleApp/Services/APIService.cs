@@ -1,32 +1,26 @@
+using RestSharp;
 using System;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 
 public class ApiService
 {
-    private readonly HttpClient _httpClient;
+    private readonly RestClient _client;
 
-    public ApiService(HttpClient httpClient)
+    public ApiService(string baseUrl)
     {
-        _httpClient = httpClient;
+        _client = new RestClient(baseUrl);
     }
 
-    public async Task<string> SendPostRequestAsync(string url, object payload, string username, string password)
+    public async Task<IRestResponse> SendPostRequestAsync(string endpoint, object payload, string username, string password)
     {
-        var jsonPayload = JsonConvert.SerializeObject(payload);
-        var httpContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+        var request = new RestRequest(endpoint, Method.POST);
+        request.AddHeader("Content-Type", "application/json");
+        
+        var base64EncodedAuthenticationString = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{username}:{password}"));
+        request.AddHeader("Authorization", $"Basic {base64EncodedAuthenticationString}");
 
-        var authenticationString = $"{username}:{password}";
-        var base64EncodedAuthenticationString = Convert.ToBase64String(Encoding.ASCII.GetBytes(authenticationString));
+        request.AddJsonBody(payload);
 
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", base64EncodedAuthenticationString);
-
-        var response = await _httpClient.PostAsync(url, httpContent);
-        response.EnsureSuccessStatusCode();
-
-        return await response.Content.ReadAsStringAsync();
+        return await _client.ExecuteAsync(request);
     }
 }
