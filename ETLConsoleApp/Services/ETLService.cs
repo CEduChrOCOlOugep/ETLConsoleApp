@@ -100,18 +100,21 @@ namespace ETLConsoleApp.Services
                     response.EnsureSuccessStatusCode();
 
                     var responseData = JsonConvert.DeserializeObject<ApiResponse>(await response.Content.ReadAsStringAsync());
-                    foreach (var row in responseData.Row)
+                    if (responseData.Row != null)
                     {
-                        var item = new Payload1Response();
-                        foreach (var field in row.Field)
+                        foreach (var row in responseData.Row)
                         {
-                            if (field.Name == Name.PERNR)
-                                item.PERN = field.Value.String;
-                            else if (field.Name == Name.FIELD1)
-                                item.Field1 = field.Value.String;
-                            // Add other fields as necessary
+                            var item = new Payload1Response();
+                            foreach (var field in row.Field)
+                            {
+                                if (field.Name == Name.PERNR)
+                                    item.PERN = field.Value.String;
+                                else if (field.Name == Name.FIELD1)
+                                    item.Field1 = field.Value.String;
+                                // Add other fields as necessary
+                            }
+                            allData.Add(item);
                         }
-                        allData.Add(item);
                     }
 
                     if (page * pageSize >= int.Parse(responseData.TotalRecordCount))
@@ -153,18 +156,21 @@ namespace ETLConsoleApp.Services
                     response.EnsureSuccessStatusCode();
 
                     var responseData = JsonConvert.DeserializeObject<ApiResponse>(await response.Content.ReadAsStringAsync());
-                    foreach (var row in responseData.Row)
+                    if (responseData.Row != null)
                     {
-                        var item = new Payload2Response();
-                        foreach (var field in row.Field)
+                        foreach (var row in responseData.Row)
                         {
-                            if (field.Name == Name.PERNR)
-                                item.PERN = field.Value.String;
-                            else if (field.Name == Name.FIELD2)
-                                item.Field2 = field.Value.String;
-                            // Add other fields as necessary
+                            var item = new Payload2Response();
+                            foreach (var field in row.Field)
+                            {
+                                if (field.Name == Name.PERNR)
+                                    item.PERN = field.Value.String;
+                                else if (field.Name == Name.FIELD2)
+                                    item.Field2 = field.Value.String;
+                                // Add other fields as necessary
+                            }
+                            allData.Add(item);
                         }
-                        allData.Add(item);
                     }
 
                     if (page * pageSize >= int.Parse(responseData.TotalRecordCount))
