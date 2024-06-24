@@ -12,6 +12,7 @@ BEGIN
         -- Add other columns as needed
     );
 
+
     -- Insert new records from table1 into #TempInsert
     INSERT INTO #TempInsert (id, ein, column1, column2)
     SELECT source.id, source.ein, source.column1, source.column2
