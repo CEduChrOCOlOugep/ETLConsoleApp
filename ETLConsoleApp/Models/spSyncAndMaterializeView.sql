@@ -1,9 +1,9 @@
 CREATE PROCEDURE SyncAndMaterializeView
 AS
 BEGIN
-    -- Synchronize table1 with table2
-    MERGE INTO table1 AS target
-    USING table2 AS source
+    -- Synchronize table2 with table1
+    MERGE INTO table2 AS target
+    USING table1 AS source
     ON target.id = source.id AND target.ein = source.ein
     WHEN MATCHED AND (source.col1 <> target.col1 OR source.col2 <> target.col2)
         THEN UPDATE SET 
