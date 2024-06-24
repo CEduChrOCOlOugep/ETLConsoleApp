@@ -1,5 +1,9 @@
 import pyodbc
 import pandas as pd
+from pathlib import Path
+from openpyxl import Workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.styles import Font
 
 # Define the connection parameters
 server = 'your_server_name'
@@ -7,35 +11,41 @@ database = 'your_database_name'
 username = 'your_username'
 password = 'your_password'
 stored_procedure = 'schemaName.AnalyzeTemporalTableErrors'
-output_file = 'output.xlsx'
+output_file = Path('Project/ProjectNameReports/database_reports/output.xlsx')
 
-# Establish the database connection
-conn = pyodbc.connect(
-    'DRIVER={ODBC Driver 17 for SQL Server};'
-    'SERVER=' + server + ';'
-    'DATABASE=' + database + ';'
-    'UID=' + username + ';'
-    'PWD=' + password
-)
+# Function to execute a stored procedure and return the results as a DataFrame
+def execute_stored_procedure():
+    conn = pyodbc.connect(
+        'DRIVER={ODBC Driver 17 for SQL Server};'
+        'SERVER=' + server + ';'
+        'DATABASE=' + database + ';'
+        'UID=' + username + ';'
+        'PWD=' + password
+    )
+    cursor = conn.cursor()
+    cursor.execute(f"EXEC {stored_procedure}")
+    columns = [column[0] for column in cursor.description]
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return pd.DataFrame.from_records(results, columns=columns)
 
-# Create a cursor from the connection
-cursor = conn.cursor()
+# Fetch the data from the stored procedure
+df_sp = execute_stored_procedure()
 
-# Execute the stored procedure
-cursor.execute(f"EXEC {stored_procedure}")
+# Initialize a new workbook
+workbook = Workbook()
+sheet = workbook.active
+sheet.title = "StoredProcedureResults"
 
-# Fetch the results
-columns = [column[0] for column in cursor.description]
-results = cursor.fetchall()
+# Write the DataFrame to the sheet
+for r in dataframe_to_rows(df_sp, index=False, header=True):
+    sheet.append(r)
 
-# Close the cursor and connection
-cursor.close()
-conn.close()
+# Apply bold font to the first row (header)
+for cell in sheet[1]:
+    cell.font = Font(bold=True)
 
-# Convert the results to a DataFrame
-df = pd.DataFrame.from_records(results, columns=columns)
-
-# Save the DataFrame to an Excel file
-df.to_excel(output_file, index=False)
-
-print(f"Data saved to {output_file}")
+# Save the workbook to the output file
+workbook.save(output_file)
+print(f"Report has been saved to '{output_file}'")
