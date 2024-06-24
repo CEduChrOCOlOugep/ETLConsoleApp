@@ -1,0 +1,20 @@
+-- Create an indexed view
+CREATE VIEW dbo.SynchronizedView
+WITH SCHEMABINDING
+AS
+SELECT 
+    t1.id AS table1_id,
+    t1.ein AS table1_ein,
+    t1.column1 AS table1_column1,
+    t1.column2 AS table1_column2,
+    t2.id AS table2_id,
+    t2.ein AS table2_ein,
+    t2.column1 AS table2_column1,
+    t2.column2 AS table2_column2
+FROM 
+    dbo.table1 t1
+LEFT JOIN 
+    dbo.table2 t2 ON t1.id = t2.id AND t1.ein = t2.ein;
+
+-- Create a unique clustered index on the view to materialize it
+CREATE UNIQUE CLUSTERED INDEX IX_SynchronizedView ON dbo.SynchronizedView (table1_id);
