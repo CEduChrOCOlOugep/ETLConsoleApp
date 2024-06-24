@@ -1,105 +1,109 @@
-WITH CurrentTable1 AS (
-    SELECT id, ein, col1, col2, col3, col4 FROM schemaName.table1
-),
-CurrentTable2 AS (
-    SELECT id, ein, col1, col2, col3, col4 FROM schemaName.table2
-),
-HistoricalTable1 AS (
-    SELECT id, ein, col1, col2, col3, col4 FROM schemaName.table1_history
-),
-HistoricalTable2 AS (
-    SELECT id, ein, col1, col2, col3, col4 FROM schemaName.table2_history
-)
-SELECT 
-    'CurrentTable1 vs CurrentTable2' AS AnalysisType,
-    c1.id, c1.ein, c1.col1 AS c1_col1, c2.col1 AS c2_col1, 
-    c1.col2 AS c1_col2, c2.col2 AS c2_col2,
-    c1.col3 AS c1_col3, c2.col3 AS c2_col3,
-    c1.col4 AS c1_col4, c2.col4 AS c2_col4,
-    CASE 
-        WHEN c1.id IS NULL THEN 'Missing in CurrentTable1'
-        WHEN c2.id IS NULL THEN 'Missing in CurrentTable2'
-        ELSE 'Mismatch'
-    END AS ErrorType
-FROM CurrentTable1 c1
-FULL OUTER JOIN CurrentTable2 c2 ON c1.id = c2.id AND c1.ein = c2.ein
+CREATE PROCEDURE schemaName.AnalyzeTemporalTableErrors
+AS
+BEGIN
+    WITH hi1 AS (
+        SELECT id, ein, col1, col2, col3, col4 FROM schemaName.table1
+    ),
+    si2 AS (
+        SELECT id, ein, col1, col2, col3, col4 FROM schemaName.table2
+    ),
+    hih1 AS (
+        SELECT id, ein, col1, col2, col3, col4 FROM schemaName.table1_history
+    ),
+    sih2 AS (
+        SELECT id, ein, col1, col2, col3, col4 FROM schemaName.table2_history
+    )
+    SELECT 
+        'hi1 vs si2' AS AnalysisType,
+        hi1.id, hi1.ein, hi1.col1 AS hi1_col1, si2.col1 AS si2_col1, 
+        hi1.col2 AS hi1_col2, si2.col2 AS si2_col2,
+        hi1.col3 AS hi1_col3, si2.col3 AS si2_col3,
+        hi1.col4 AS hi1_col4, si2.col4 AS si2_col4,
+        CASE 
+            WHEN hi1.id IS NULL THEN 'Missing in hi1'
+            WHEN si2.id IS NULL THEN 'Missing in si2'
+            ELSE 'Mismatch'
+        END AS ErrorType
+    FROM hi1
+    FULL OUTER JOIN si2 ON hi1.id = si2.id AND hi1.ein = si2.ein
 
-UNION ALL
+    UNION ALL
 
-SELECT 
-    'CurrentTable1 vs HistoricalTable1' AS AnalysisType,
-    c1.id, c1.ein, c1.col1 AS c1_col1, h1.col1 AS h1_col1, 
-    c1.col2 AS c1_col2, h1.col2 AS h1_col2,
-    c1.col3 AS c1_col3, h1.col3 AS h1_col3,
-    c1.col4 AS c1_col4, h1.col4 AS h1_col4,
-    CASE 
-        WHEN c1.id IS NULL THEN 'Missing in CurrentTable1'
-        WHEN h1.id IS NULL THEN 'Missing in HistoricalTable1'
-        ELSE 'Mismatch'
-    END AS ErrorType
-FROM CurrentTable1 c1
-FULL OUTER JOIN HistoricalTable1 h1 ON c1.id = h1.id AND c1.ein = h1.ein
+    SELECT 
+        'hi1 vs hih1' AS AnalysisType,
+        hi1.id, hi1.ein, hi1.col1 AS hi1_col1, hih1.col1 AS hih1_col1, 
+        hi1.col2 AS hi1_col2, hih1.col2 AS hih1_col2,
+        hi1.col3 AS hi1_col3, hih1.col3 AS hih1_col3,
+        hi1.col4 AS hi1.col4, hih1.col4 AS hih1.col4,
+        CASE 
+            WHEN hi1.id IS NULL THEN 'Missing in hi1'
+            WHEN hih1.id IS NULL THEN 'Missing in hih1'
+            ELSE 'Mismatch'
+        END AS ErrorType
+    FROM hi1
+    FULL OUTER JOIN hih1 ON hi1.id = hih1.id AND hi1.ein = hih1.ein
 
-UNION ALL
+    UNION ALL
 
-SELECT 
-    'CurrentTable1 vs HistoricalTable2' AS AnalysisType,
-    c1.id, c1.ein, c1.col1 AS c1_col1, h2.col1 AS h2_col1, 
-    c1.col2 AS c1_col2, h2.col2 AS h2_col2,
-    c1.col3 AS c1_col3, h2.col3 AS h2_col3,
-    c1.col4 AS c1_col4, h2.col4 AS h2_col4,
-    CASE 
-        WHEN c1.id IS NULL THEN 'Missing in CurrentTable1'
-        WHEN h2.id IS NULL THEN 'Missing in HistoricalTable2'
-        ELSE 'Mismatch'
-    END AS ErrorType
-FROM CurrentTable1 c1
-FULL OUTER JOIN HistoricalTable2 h2 ON c1.id = h2.id AND c1.ein = h2.ein
+    SELECT 
+        'hi1 vs sih2' AS AnalysisType,
+        hi1.id, hi1.ein, hi1.col1 AS hi1_col1, sih2.col1 AS sih2_col1, 
+        hi1.col2 AS hi1_col2, sih2.col2 AS sih2_col2,
+        hi1.col3 AS hi1_col3, sih2.col3 AS sih2_col3,
+        hi1.col4 AS hi1.col4, sih2.col4 AS sih2_col4,
+        CASE 
+            WHEN hi1.id IS NULL THEN 'Missing in hi1'
+            WHEN sih2.id IS NULL THEN 'Missing in sih2'
+            ELSE 'Mismatch'
+        END AS ErrorType
+    FROM hi1
+    FULL OUTER JOIN sih2 ON hi1.id = sih2.id AND hi1.ein = sih2.ein
 
-UNION ALL
+    UNION ALL
 
-SELECT 
-    'CurrentTable2 vs HistoricalTable1' AS AnalysisType,
-    c2.id, c2.ein, c2.col1 AS c2_col1, h1.col1 AS h1_col1, 
-    c2.col2 AS c2_col2, h1.col2 AS h1_col2,
-    c2.col3 AS c2_col3, h1.col3 AS h1_col3,
-    c2.col4 AS c2_col4, h1.col4 AS h1_col4,
-    CASE 
-        WHEN c2.id IS NULL THEN 'Missing in CurrentTable2'
-        WHEN h1.id IS NULL THEN 'Missing in HistoricalTable1'
-        ELSE 'Mismatch'
-    END AS ErrorType
-FROM CurrentTable2 c2
-FULL OUTER JOIN HistoricalTable1 h1 ON c2.id = h1.id AND c2.ein = h1.ein
+    SELECT 
+        'si2 vs hih1' AS AnalysisType,
+        si2.id, si2.ein, si2.col1 AS si2_col1, hih1.col1 AS hih1_col1, 
+        si2.col2 AS si2_col2, hih1.col2 AS hih1_col2,
+        si2.col3 AS si2_col3, hih1.col3 AS hih1_col3,
+        si2.col4 AS si2.col4, hih1.col4 AS hih1.col4,
+        CASE 
+            WHEN si2.id IS NULL THEN 'Missing in si2'
+            WHEN hih1.id IS NULL THEN 'Missing in hih1'
+            ELSE 'Mismatch'
+        END AS ErrorType
+    FROM si2
+    FULL OUTER JOIN hih1 ON si2.id = hih1.id AND si2.ein = hih1.ein
 
-UNION ALL
+    UNION ALL
 
-SELECT 
-    'CurrentTable2 vs HistoricalTable2' AS AnalysisType,
-    c2.id, c2.ein, c2.col1 AS c2_col1, h2.col1 AS h2_col1, 
-    c2.col2 AS c2_col2, h2.col2 AS h2_col2,
-    c2.col3 AS c2_col3, h2.col3 AS h2_col3,
-    c2.col4 AS c2_col4, h2.col4 AS h2_col4,
-    CASE 
-        WHEN c2.id IS NULL THEN 'Missing in CurrentTable2'
-        WHEN h2.id IS NULL THEN 'Missing in HistoricalTable2'
-        ELSE 'Mismatch'
-    END AS ErrorType
-FROM CurrentTable2 c2
-FULL OUTER JOIN HistoricalTable2 h2 ON c2.id = h2.id AND c2.ein = h2.ein
+    SELECT 
+        'si2 vs sih2' AS AnalysisType,
+        si2.id, si2.ein, si2.col1 AS si2_col1, sih2.col1 AS sih2_col1, 
+        si2.col2 AS si2_col2, sih2.col2 AS sih2_col2,
+        si2.col3 AS si2_col3, sih2.col3 AS sih2.col3,
+        si2.col4 AS si2.col4, sih2.col4 AS sih2.col4,
+        CASE 
+            WHEN si2.id IS NULL THEN 'Missing in si2'
+            WHEN sih2.id IS NULL THEN 'Missing in sih2'
+            ELSE 'Mismatch'
+        END AS ErrorType
+    FROM si2
+    FULL OUTER JOIN sih2 ON si2.id = sih2.id AND si2.ein = sih2.ein
 
-UNION ALL
+    UNION ALL
 
-SELECT 
-    'HistoricalTable1 vs HistoricalTable2' AS AnalysisType,
-    h1.id, h1.ein, h1.col1 AS h1_col1, h2.col1 AS h2_col1, 
-    h1.col2 AS h1_col2, h2.col2 AS h2_col2,
-    h1.col3 AS h1_col3, h2.col3 AS h2_col3,
-    h1.col4 AS h1_col4, h2.col4 AS h2_col4,
-    CASE 
-        WHEN h1.id IS NULL THEN 'Missing in HistoricalTable1'
-        WHEN h2.id IS NULL THEN 'Missing in HistoricalTable2'
-        ELSE 'Mismatch'
-    END AS ErrorType
-FROM HistoricalTable1 h1
-FULL OUTER JOIN HistoricalTable2 h2 ON h1.id = h2.id AND h1.ein = h2.ein;
+    SELECT 
+        'hih1 vs sih2' AS AnalysisType,
+        hih1.id, hih1.ein, hih1.col1 AS hih1_col1, sih2.col1 AS sih2_col1, 
+        hih1.col2 AS hih1_col2, sih2.col2 AS sih2_col2,
+        hih1.col3 AS hih1.col3, sih2.col3 AS sih2.col3,
+        hih1.col4 AS hih1.col4, sih2.col4 AS sih2.col4,
+        CASE 
+            WHEN hih1.id IS NULL THEN 'Missing in hih1'
+            WHEN sih2.id IS NULL THEN 'Missing in sih2'
+            ELSE 'Mismatch'
+        END AS ErrorType
+    FROM hih1
+    FULL OUTER JOIN sih2 ON hih1.id = sih2.id AND hih1.ein = sih2.ein;
+END
