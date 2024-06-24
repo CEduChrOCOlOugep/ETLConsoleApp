@@ -19,7 +19,8 @@ BEGIN
         CASE 
             WHEN hi1.id IS NULL THEN 'Missing in hi1'
             WHEN si2.id IS NULL THEN 'Missing in si2'
-            ELSE 'Mismatch'
+            WHEN hi1.ein <> si2.ein THEN 'EIN Mismatch'
+            ELSE 'ID Mismatch'
         END AS ErrorType
     FROM hi1
     FULL OUTER JOIN si2 ON hi1.id = si2.id AND hi1.ein = si2.ein
@@ -32,7 +33,8 @@ BEGIN
         CASE 
             WHEN hi1.id IS NULL THEN 'Missing in hi1'
             WHEN hih1.id IS NULL THEN 'Missing in hih1'
-            ELSE 'Mismatch'
+            WHEN hi1.ein <> hih1.ein THEN 'EIN Mismatch'
+            ELSE 'ID Mismatch'
         END AS ErrorType
     FROM hi1
     FULL OUTER JOIN hih1 ON hi1.id = hih1.id AND hi1.ein = hih1.ein
@@ -45,7 +47,8 @@ BEGIN
         CASE 
             WHEN hi1.id IS NULL THEN 'Missing in hi1'
             WHEN sih2.id IS NULL THEN 'Missing in sih2'
-            ELSE 'Mismatch'
+            WHEN hi1.ein <> sih2.ein THEN 'EIN Mismatch'
+            ELSE 'ID Mismatch'
         END AS ErrorType
     FROM hi1
     FULL OUTER JOIN sih2 ON hi1.id = sih2.id AND hi1.ein = sih2.ein
@@ -58,7 +61,8 @@ BEGIN
         CASE 
             WHEN si2.id IS NULL THEN 'Missing in si2'
             WHEN hih1.id IS NULL THEN 'Missing in hih1'
-            ELSE 'Mismatch'
+            WHEN si2.ein <> hih1.ein THEN 'EIN Mismatch'
+            ELSE 'ID Mismatch'
         END AS ErrorType
     FROM si2
     FULL OUTER JOIN hih1 ON si2.id = hih1.id AND si2.ein = hih1.ein
@@ -71,7 +75,8 @@ BEGIN
         CASE 
             WHEN si2.id IS NULL THEN 'Missing in si2'
             WHEN sih2.id IS NULL THEN 'Missing in sih2'
-            ELSE 'Mismatch'
+            WHEN si2.ein <> sih2.ein THEN 'EIN Mismatch'
+            ELSE 'ID Mismatch'
         END AS ErrorType
     FROM si2
     FULL OUTER JOIN sih2 ON si2.id = sih2.id AND si2.ein = sih2.ein
@@ -84,7 +89,8 @@ BEGIN
         CASE 
             WHEN hih1.id IS NULL THEN 'Missing in hih1'
             WHEN sih2.id IS NULL THEN 'Missing in sih2'
-            ELSE 'Mismatch'
+            WHEN hih1.ein <> sih2.ein THEN 'EIN Mismatch'
+            ELSE 'ID Mismatch'
         END AS ErrorType
     FROM hih1
     FULL OUTER JOIN sih2 ON hih1.id = sih2.id AND hih1.ein = sih2.ein;
