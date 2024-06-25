@@ -1,70 +1,52 @@
 CREATE PROCEDURE SyncAndMaterializeView
 AS
 BEGIN
-    -- Step 1: Synchronize table2 with table1
-    MERGE INTO table2 AS target
-    USING table1 AS source
-    ON target.id = source.id AND target.ein = source.ein
-    WHEN MATCHED AND (source.col1 <> target.col1 OR source.col2 <> target.col2)
-        THEN UPDATE SET 
-            target.col1 = source.col1,
-            target.col2 = source.col2
-    WHEN NOT MATCHED BY TARGET
-        THEN INSERT (id, ein, col1, col2)
-        VALUES (source.id, source.ein, source.col1, source.col2);
-
     -- Ensure the temp table doesn't exist before creating it
     IF OBJECT_ID('tempdb..#TempInsert') IS NOT NULL
     BEGIN
         DROP TABLE #TempInsert;
     END
 
-    -- Step 2: Create a temporary table to hold the intermediate results
+    -- Step 1: Create a temporary table to hold the intermediate results
     CREATE TABLE #TempInsert (
-        id INT,
-        ein INT,
-        col1 NVARCHAR(50),
-        col2 NVARCHAR(50),
-        col3 NVARCHAR(50),
-        col4 NVARCHAR(50)
+        ID INT,
+        NR NVARCHAR(50),
+        D2 NVARCHAR(50),
+        DT NVARCHAR(50)
     );
 
-    -- Step 3: Insert the ranked records into the temporary table
+    -- Step 2: Insert the ranked records into the temporary table
     WITH RankedRecords AS (
         SELECT
-            t1.id,
-            t1.ein,
-            t1.col1,
-            t1.col2,
-            t2.col3,
-            t2.col4,
-            ROW_NUMBER() OVER (PARTITION BY t1.id ORDER BY t1.col1 DESC) AS rn
+            t1.ID,
+            t1.NR,
+            t1.D2,
+            t1.DT,
+            ROW_NUMBER() OVER (PARTITION BY t1.ID ORDER BY t1.ID DESC) AS rn
         FROM table1 t1
-        JOIN table2 t2 ON t1.id = t2.id AND t1.ein = t2.ein
+        JOIN table2 t2 ON t1.ID = t2.SN
     )
-    INSERT INTO #TempInsert (id, ein, col1, col2, col3, col4)
-    SELECT id, ein, col1, col2, col3, col4
+    INSERT INTO #TempInsert (ID, NR, D2, DT)
+    SELECT ID, NR, D2, DT
     FROM RankedRecords
     WHERE rn = 1;
 
-    -- Step 4: Merge the temporary table into the materialized view table
-    MERGE INTO MaterializedView AS target
+    -- Step 3: Merge the temporary table into table2
+    MERGE INTO table2 AS target
     USING #TempInsert AS source
-    ON target.id = source.id AND target.ein = source.ein
+    ON target.SN = source.ID
     WHEN MATCHED AND (
-            target.col1 <> source.col1 OR 
-            target.col2 <> source.col2 OR
-            (target.col3 IS NULL AND source.col3 IS NOT NULL) OR 
-            (target.col4 IS NULL AND source.col4 IS NOT NULL))
+            (target.IN IS NULL AND source.NR IS NOT NULL) OR
+            (target.PS IS NULL AND source.D2 IS NOT NULL) OR
+            (target.AD IS NULL AND source.DT IS NOT NULL))
         THEN UPDATE SET
-            target.col1 = source.col1,
-            target.col2 = source.col2,
-            target.col3 = CASE WHEN target.col3 IS NULL THEN source.col3 ELSE target.col3 END,
-            target.col4 = CASE WHEN target.col4 IS NULL THEN source.col4 ELSE target.col4 END
+            target.IN = CASE WHEN target.IN IS NULL THEN source.NR ELSE target.IN END,
+            target.PS = CASE WHEN target.PS IS NULL THEN source.D2 ELSE target.PS END,
+            target.AD = CASE WHEN target.AD IS NULL THEN source.DT ELSE target.AD END
     WHEN NOT MATCHED BY TARGET
-        THEN INSERT (id, ein, col1, col2, col3, col4)
-        VALUES (source.id, source.ein, source.col1, source.col2, source.col3, source.col4);
+        THEN INSERT (SN, IN, PS, AD)
+        VALUES (source.ID, source.NR, source.D2, source.DT);
 
-    -- Step 5: Drop the temporary table
+    -- Step 4: Drop the temporary table
     DROP TABLE #TempInsert;
 END
