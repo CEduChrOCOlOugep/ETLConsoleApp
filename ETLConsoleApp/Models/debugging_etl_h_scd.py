@@ -143,11 +143,13 @@ def ensure_string_columns(df: pd.DataFrame, columns: list = None) -> pd.DataFram
         return df
 
 
-def replace_missing_with_default(df: pd.DataFrame, column_defaults: dict) -> pd.DataFrame:
+def replace_missing_with_default(df: pd.DataFrame) -> pd.DataFrame:
     try:
-        for column, default_value in column_defaults.items():
-            df[column] = df[column].fillna(default_value)
-            df[column] = df[column].replace(to_replace=[None, 'nan', 'NaN', np.nan], value=default_value)
+        for index, row in df.iterrows():
+            if row['ESCD2'] == 'A':
+                df.at[index, 'SBGDT'] = ''
+            elif row['ESCD2'] == 'S' and pd.isna(row['SBGDT']):
+                df.at[index, 'SBGDT'] = ''
         return df
     except Exception as e:
         logger.error(f"Error occurred while replacing missing values: {e}")
@@ -191,12 +193,7 @@ async def main():
                 final_df = ensure_string_columns(final_df, columns_to_ensure)
 
                 # Replace missing values with the default values
-                column_defaults = {
-                    'SBGDT': '1901-01-01',
-                    'EEEIN': '999999999',
-                    'SSSN': '999999999'
-                }
-                final_df = replace_missing_with_default(final_df, column_defaults)
+                final_df = replace_missing_with_default(final_df)
 
                 # Modify the 'ActionType' column based on the 'E2' column
                 final_df['hActionType'] = final_df['E2'].apply(
