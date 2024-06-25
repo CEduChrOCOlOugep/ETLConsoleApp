@@ -15,10 +15,21 @@ BEGIN
         DT NVARCHAR(50)
     );
 
-    -- Step 2: Insert the necessary records from table1 into the temporary table
+    -- Step 2: Insert the ranked records into the temporary table
+    WITH RankedRecords AS (
+        SELECT
+            t1.ID,
+            t1.NR,
+            t1.D2,
+            t1.DT,
+            ROW_NUMBER() OVER (PARTITION BY t1.ID ORDER BY t1.ID DESC) AS rn
+        FROM table1 t1
+        JOIN table2 t2 ON t1.ID = t2.SN
+    )
     INSERT INTO #TempInsert (ID, NR, D2, DT)
     SELECT ID, NR, D2, DT
-    FROM table1;
+    FROM RankedRecords
+    WHERE rn = 1;
 
     -- Step 3: Merge the temporary table into table2
     MERGE INTO table2 AS target
