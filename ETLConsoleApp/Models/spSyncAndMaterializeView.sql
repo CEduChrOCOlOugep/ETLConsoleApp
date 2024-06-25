@@ -1,13 +1,13 @@
 CREATE PROCEDURE SyncAndMaterializeView
 AS
 BEGIN
-    -- Step 1: Ensure the temp table doesn't exist before creating it
-    IF OBJECT_ID('tempdb..#TempInsert') IS NOT NULL
+    -- Ensure the temp table doesn't exist before creating it
+    IF OBJECT_ID('tempdb..#TempInsert', 'U') IS NOT NULL
     BEGIN
         DROP TABLE #TempInsert;
     END
 
-    -- Step 2: Create a temporary table to hold the intermediate results
+    -- Step 1: Create a temporary table to hold the intermediate results
     CREATE TABLE #TempInsert (
         ID INT,
         NR NVARCHAR(50),
@@ -15,23 +15,12 @@ BEGIN
         DT NVARCHAR(50)
     );
 
-    -- Step 3: Insert the ranked records into the temporary table
-    WITH RankedRecords AS (
-        SELECT
-            t1.ID,
-            t1.NR,
-            t1.D2,
-            t1.DT,
-            ROW_NUMBER() OVER (PARTITION BY t1.ID ORDER BY t1.ID DESC) AS rn
-        FROM table1 t1
-        JOIN table2 t2 ON t1.ID = t2.SN
-    )
+    -- Step 2: Insert the necessary records from table1 into the temporary table
     INSERT INTO #TempInsert (ID, NR, D2, DT)
     SELECT ID, NR, D2, DT
-    FROM RankedRecords
-    WHERE rn = 1;
+    FROM table1;
 
-    -- Step 4: Merge the temporary table into table2
+    -- Step 3: Merge the temporary table into table2
     MERGE INTO table2 AS target
     USING #TempInsert AS source
     ON target.SN = source.ID
@@ -47,6 +36,6 @@ BEGIN
         THEN INSERT (SN, IN, PS, AD)
         VALUES (source.ID, source.NR, source.D2, source.DT);
 
-    -- Step 5: Drop the temporary table
+    -- Step 4: Drop the temporary table
     DROP TABLE #TempInsert;
-END
+END;
