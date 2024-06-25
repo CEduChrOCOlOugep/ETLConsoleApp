@@ -12,7 +12,8 @@ BEGIN
         ID INT,
         NR NVARCHAR(50),
         D2 NVARCHAR(50),
-        DT NVARCHAR(50)
+        DT NVARCHAR(50),
+        RS NVARCHAR(50)
     );
 
     -- Step 2: Insert the ranked records into the temporary table
@@ -22,12 +23,13 @@ BEGIN
             t1.NR,
             t1.D2,
             t1.DT,
+            CASE WHEN t1.D2 = 'S' THEN 'HARQ' ELSE NULL END AS RS,
             ROW_NUMBER() OVER (PARTITION BY t1.ID ORDER BY t1.ID DESC) AS rn
         FROM table1 t1
         JOIN table2 t2 ON t1.ID = t2.SN
     )
-    INSERT INTO #TempInsert (ID, NR, D2, DT)
-    SELECT ID, NR, D2, DT
+    INSERT INTO #TempInsert (ID, NR, D2, DT, RS)
+    SELECT ID, NR, D2, DT, RS
     FROM RankedRecords
     WHERE rn = 1;
 
@@ -38,14 +40,16 @@ BEGIN
     WHEN MATCHED AND (
             (target.IN IS NULL AND source.NR IS NOT NULL) OR
             (target.PS IS NULL AND source.D2 IS NOT NULL) OR
-            (target.AD IS NULL AND source.DT IS NOT NULL))
+            (target.AD IS NULL AND source.DT IS NOT NULL) OR
+            (source.RS IS NOT NULL AND target.RS <> 'HARQ'))
         THEN UPDATE SET
             target.IN = CASE WHEN target.IN IS NULL THEN source.NR ELSE target.IN END,
             target.PS = CASE WHEN target.PS IS NULL THEN source.D2 ELSE target.PS END,
-            target.AD = CASE WHEN target.AD IS NULL THEN source.DT ELSE target.AD END
+            target.AD = CASE WHEN target.AD IS NULL THEN source.DT ELSE target.AD END,
+            target.RS = CASE WHEN source.RS IS NOT NULL THEN source.RS ELSE target.RS END
     WHEN NOT MATCHED BY TARGET
-        THEN INSERT (SN, IN, PS, AD)
-        VALUES (source.ID, source.NR, source.D2, source.DT);
+        THEN INSERT (SN, IN, PS, AD, RS)
+        VALUES (source.ID, source.NR, source.D2, source.DT, source.RS);
 
     -- Step 4: Drop the temporary table
     DROP TABLE #TempInsert;
