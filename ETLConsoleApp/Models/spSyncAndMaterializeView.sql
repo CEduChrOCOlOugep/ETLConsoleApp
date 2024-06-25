@@ -13,6 +13,12 @@ BEGIN
         THEN INSERT (id, ein, col1, col2)
         VALUES (source.id, source.ein, source.col1, source.col2);
 
+    -- Ensure the temp table doesn't exist before creating it
+    IF OBJECT_ID('tempdb..#TempInsert') IS NOT NULL
+    BEGIN
+        DROP TABLE #TempInsert;
+    END
+
     -- Step 2: Create a temporary table to hold the intermediate results
     CREATE TABLE #TempInsert (
         id INT,
@@ -48,8 +54,8 @@ BEGIN
     WHEN MATCHED AND (
             target.col1 <> source.col1 OR 
             target.col2 <> source.col2 OR
-            (target.col3 IS NULL AND target.col3 <> source.col3) OR 
-            (target.col4 IS NULL AND target.col4 <> source.col4))
+            (target.col3 IS NULL AND source.col3 IS NOT NULL) OR 
+            (target.col4 IS NULL AND source.col4 IS NOT NULL))
         THEN UPDATE SET
             target.col1 = source.col1,
             target.col2 = source.col2,
