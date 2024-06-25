@@ -148,7 +148,7 @@ def replace_missing_with_default(df: pd.DataFrame) -> pd.DataFrame:
         for index, row in df.iterrows():
             if row['ESCD2'] == 'A':
                 df.at[index, 'SBGDT'] = ''
-            elif row['ESCD2'] == 'S' and pd.isna(row['SBGDT']):
+            elif row['ESCD2'] == 'S' and (pd.isna(row['SBGDT']) or row['SBGDT'] == 'nan'):
                 df.at[index, 'SBGDT'] = ''
         return df
     except Exception as e:
@@ -182,6 +182,9 @@ async def main():
                 df1 = read_and_convert_to_string(data_directory / 'br03.csv')
                 df2 = read_and_convert_to_string(data_directory / 'br04.csv')
 
+                # Apply the missing value replacement logic to df2 (br04.csv)
+                df2 = replace_missing_with_default(df2)
+
                 # Merge the dataframes on the 'EEEIN' column
                 final_df = pd.merge(df1, df2, on='EEEIN', how='outer')
 
@@ -192,7 +195,7 @@ async def main():
                 columns_to_ensure = ['EEEIN', 'SSSN', 'ACTION', 'A', 'E2', 'S', 'D', 'F', 'G', 'H']
                 final_df = ensure_string_columns(final_df, columns_to_ensure)
 
-                # Replace missing values with the default values
+                # Apply the missing value replacement logic to final_df
                 final_df = replace_missing_with_default(final_df)
 
                 # Modify the 'ActionType' column based on the 'E2' column
