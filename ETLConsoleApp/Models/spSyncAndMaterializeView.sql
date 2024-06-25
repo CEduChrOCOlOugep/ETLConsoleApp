@@ -48,13 +48,13 @@ BEGIN
     WHEN MATCHED AND (
             target.col1 <> source.col1 OR 
             target.col2 <> source.col2 OR
-            target.col3 <> source.col3 OR
-            target.col4 <> source.col4)
+            (target.col3 IS NULL AND target.col3 <> source.col3) OR 
+            (target.col4 IS NULL AND target.col4 <> source.col4))
         THEN UPDATE SET
             target.col1 = source.col1,
             target.col2 = source.col2,
-            target.col3 = source.col3,
-            target.col4 = source.col4
+            target.col3 = CASE WHEN target.col3 IS NULL THEN source.col3 ELSE target.col3 END,
+            target.col4 = CASE WHEN target.col4 IS NULL THEN source.col4 ELSE target.col4 END
     WHEN NOT MATCHED BY TARGET
         THEN INSERT (id, ein, col1, col2, col3, col4)
         VALUES (source.id, source.ein, source.col1, source.col2, source.col3, source.col4);
