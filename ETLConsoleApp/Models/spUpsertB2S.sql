@@ -1,35 +1,8 @@
-Certainly! Here is the consolidated script that includes the relevant steps and uses the correct database names and schemas:
+Thank you for the clarification. Given that `BINS2.MyView` contains `RequestID` and `RequestStatus`, and that `STCS.MyTable` contains `RequestID` and `RequestStatusID`, we need to handle the conversion between `RequestStatus` and `RequestStatusID` in the upsert procedure.
+
+### Consolidated Script
 
 ```sql
--- Create the stored procedure in STCS
-CREATE PROCEDURE STCS.MyUpsertProcedure
-    @RequestID VARCHAR(MAX),
-    @RequestStatus VARCHAR(MAX),
-    @RowsAffected INT OUTPUT
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    IF EXISTS (SELECT 1 FROM STCS.MyTable WHERE RequestID = @RequestID)
-    BEGIN
-        -- Update existing record
-        UPDATE STCS.MyTable
-        SET RequestStatus = @RequestStatus
-        WHERE RequestID = @RequestID;
-
-        SET @RowsAffected = @@ROWCOUNT;
-    END
-    ELSE
-    BEGIN
-        -- Insert new record
-        INSERT INTO STCS.MyTable (RequestID, RequestStatus)
-        VALUES (@RequestID, @RequestStatus);
-
-        SET @RowsAffected = @@ROWCOUNT;
-    END
-END;
-GO
-
 -- Log table creation in STCS
 CREATE TABLE STCS.UpsertLog (
     LogID INT IDENTITY(1,1) PRIMARY KEY,
@@ -40,20 +13,37 @@ CREATE TABLE STCS.UpsertLog (
 );
 GO
 
--- Update the stored procedure to include logging
+-- Create the stored procedure in STCS with logging
 CREATE PROCEDURE STCS.MyUpsertProcedure
     @RequestID VARCHAR(MAX),
-    @RequestStatus VARCHAR(MAX)
+    @RequestStatus VARCHAR(MAX),
+    @RowsAffected INT OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    DECLARE @RequestStatusID INT
+
+    -- Retrieve RequestStatusID from RequestStatusTable
+    SELECT @RequestStatusID = RequestStatusID 
+    FROM STCS.RequestStatusTable 
+    WHERE RequestStatus = @RequestStatus;
+
+    IF @RequestStatusID IS NULL
+    BEGIN
+        -- Handle the case where RequestStatusID is not found
+        RAISERROR('RequestStatusID not found for RequestStatus: %s', 16, 1, @RequestStatus);
+        RETURN;
+    END
 
     IF EXISTS (SELECT 1 FROM STCS.MyTable WHERE RequestID = @RequestID)
     BEGIN
         -- Update existing record
         UPDATE STCS.MyTable
-        SET RequestStatus = @RequestStatus
+        SET RequestStatusID = @RequestStatusID
         WHERE RequestID = @RequestID;
+
+        SET @RowsAffected = @@ROWCOUNT;
 
         -- Log the update operation
         INSERT INTO STCS.UpsertLog (RequestID, RequestStatus, Operation)
@@ -62,7 +52,10 @@ BEGIN
     ELSE
     BEGIN
         -- Insert new record
-        INSERT INTO STCS.MyTable (RequestID, RequestStatus);
+        INSERT INTO STCS.MyTable (RequestID, RequestStatusID)
+        VALUES (@RequestID, @RequestStatusID);
+
+        SET @RowsAffected = @@ROWCOUNT;
 
         -- Log the insert operation
         INSERT INTO STCS.UpsertLog (RequestID, RequestStatus, Operation)
@@ -131,11 +124,13 @@ ORDER BY Timestamp DESC;
 GO
 ```
 
-This script covers the following:
-1. **Creation of the stored procedure in STCS with logging.**
-2. **Cursor to read data from BINS2 and call the stored procedure in STCS.**
-3. **Validation query to compare data between BINS2 and STCS.**
-4. **Row count validation.**
-5. **Query to review the logs in the logging table.**
+### Explanation
 
-By running this script, you can ensure that the data is correctly upserted from BINS2 to STCS and validate the operation.
+1. **Log Table Creation in STCS**: Create a log table `STCS.UpsertLog` to record the upsert operations.
+2. **Stored Procedure in STCS**: The stored procedure `STCS.MyUpsertProcedure` accepts `RequestID` and `RequestStatus`. It retrieves `RequestStatusID` from `STCS.RequestStatusTable`. If `RequestStatusID` is not found, an error is raised. It then upserts the data into `STCS.MyTable` and logs the operation.
+3. **Cursor to Execute the Stored Procedure**: This script iterates over each row in the view from `BINS2` and calls the stored procedure in `STCS`, passing `RequestID` and `RequestStatus`.
+4. **Validation Query**: This query selects data from `BINS2` and `STCS`, including an inner join to fetch `RequestStatus`. It compares the `RequestStatus` between `BINS2` and `STCS` to identify discrepancies.
+5. **Row Count Validation**: This step checks if the row counts match between `BINS2` view and `STCS` table.
+6. **Review Logs**: This query reviews the logs to ensure the operations were performed correctly.
+
+By running this consolidated script, you can ensure the data is correctly upserted from `BINS2` to `STCS` and validate the operation.
