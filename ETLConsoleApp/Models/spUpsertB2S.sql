@@ -31,23 +31,17 @@ BEGIN
         RETURN;
     END
 
-    -- Upsert operation
-    MERGE INTO STCS.Requests AS target
-    USING (SELECT @RequestID AS RequestID, @RequestStatusID AS RequestStatusID) AS source
-    ON (target.RequestID = source.RequestID)
-    WHEN MATCHED THEN 
-        UPDATE SET RequestStatusID = source.RequestStatusID
-    WHEN NOT MATCHED THEN
-        INSERT (RequestID, RequestStatusID)
-        VALUES (source.RequestID, source.RequestStatusID);
+    -- Update operation
+    UPDATE STCS.Requests
+    SET RequestStatusID = @RequestStatusID
+    WHERE RequestID = @RequestID;
 
     SET @RowsAffected = @@ROWCOUNT;
 
     -- Log the operation
     INSERT INTO STCS.UpsertLog (RequestID, RequestStatus, Operation)
     VALUES (@RequestID, @RequestStatus, 
-            CASE WHEN EXISTS (SELECT 1 FROM STCS.Requests WHERE RequestID = @RequestID) 
-                 THEN 'UPDATE' ELSE 'INSERT' END);
+            CASE WHEN @RowsAffected > 0 THEN 'UPDATE' ELSE 'NO CHANGE' END);
 END;
 GO
 
@@ -63,32 +57,35 @@ FROM BINS2.BINS2.MyView;
 GO
 
 -- Deduplicate the source data
-SELECT RequestID, RequestStatus
+SELECT DISTINCT RequestID, RequestStatus
 INTO #DeduplicatedBINS2Data
-FROM #BINS2Data
-GROUP BY RequestID, RequestStatus;
+FROM #BINS2Data;
 GO
 
--- Perform the upsert operations
-MERGE INTO STCS.Requests AS target
-USING (SELECT RequestID, RequestStatusID
-       FROM #DeduplicatedBINS2Data src
-       JOIN STCS.ListRequestsStatus rst
-       ON src.RequestStatus = rst.RequestStatus) AS source
-ON (target.RequestID = source.RequestID)
-WHEN MATCHED THEN 
-    UPDATE SET RequestStatusID = source.RequestStatusID
-WHEN NOT MATCHED THEN
-    INSERT (RequestID, RequestStatusID)
-    VALUES (source.RequestID, source.RequestStatusID);
+-- Perform the update operations
+DECLARE @RequestID VARCHAR(MAX), @RequestStatus VARCHAR(MAX), @RowsAffected INT;
+
+DECLARE db_cursor CURSOR FOR
+SELECT RequestID, RequestStatus
+FROM #DeduplicatedBINS2Data;
+
+OPEN db_cursor;
+FETCH NEXT FROM db_cursor INTO @RequestID, @RequestStatus;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    EXEC STCS.MyUpsertProcedure @RequestID, @RequestStatus, @RowsAffected OUTPUT;
+    FETCH NEXT FROM db_cursor INTO @RequestID, @RequestStatus;
+END;
+
+CLOSE db_cursor;
+DEALLOCATE db_cursor;
 GO
 
 -- Log the operations
 INSERT INTO STCS.UpsertLog (RequestID, RequestStatus, Operation)
-SELECT src.RequestID, src.RequestStatus, 'UPSERT'
-FROM #BINS2Data src
-INNER JOIN STCS.ListRequestsStatus rst
-ON src.RequestStatus = rst.RequestStatus;
+SELECT RequestID, RequestStatus, 'UPDATE'
+FROM #DeduplicatedBINS2Data;
 GO
 
 -- Cleanup temporary tables
