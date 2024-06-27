@@ -162,3 +162,29 @@ ORDER BY Timestamp DESC;
 ```
 
 By implementing these validation steps, you can ensure that the stored procedure is working as intended and that the data has been accurately upserted from DB1 to DB2.
+
+-- Select data from DB1 view
+SELECT RequestID, RequestStatus
+INTO #DB1Data
+FROM DB1.dbo.MyView;
+
+-- Select data from DB2 table with inner join to get RequestStatus
+SELECT mt.RequestID, rst.RequestStatus
+INTO #DB2Data
+FROM DB2.dbo.MyTable mt
+INNER JOIN DB2.dbo.RequestStatusTable rst ON mt.RequestStatusID = rst.RequestStatusID;
+
+-- Compare the data
+SELECT 
+    a.RequestID AS DB1_RequestID, 
+    a.RequestStatus AS DB1_RequestStatus, 
+    b.RequestID AS DB2_RequestID, 
+    b.RequestStatus AS DB2_RequestStatus
+FROM #DB1Data a
+LEFT JOIN #DB2Data b ON a.RequestID = b.RequestID
+WHERE a.RequestStatus <> b.RequestStatus
+   OR b.RequestID IS NULL;
+
+-- Cleanup temporary tables
+DROP TABLE #DB1Data;
+DROP TABLE #DB2Data;
