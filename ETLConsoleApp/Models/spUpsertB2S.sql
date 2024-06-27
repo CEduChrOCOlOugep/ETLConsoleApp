@@ -1,10 +1,3 @@
-Certainly! Here is the updated script that includes an `IF EXISTS` check to drop the temporary table `#BINS2Data` if it exists:
-
-### Consolidated Script with `IF EXISTS` Check
-
-#### 1. Create the Log Table in STCS
-
-```sql
 -- Log table creation in STCS
 CREATE TABLE STCS.UpsertLog (
     LogID INT IDENTITY(1,1) PRIMARY KEY,
@@ -14,11 +7,7 @@ CREATE TABLE STCS.UpsertLog (
     Timestamp DATETIME DEFAULT GETDATE()
 );
 GO
-```
 
-#### 2. Create the Stored Procedure in STCS
-
-```sql
 -- Create the stored procedure in STCS with logging
 CREATE PROCEDURE STCS.MyUpsertProcedure
     @RequestID VARCHAR(MAX),
@@ -61,13 +50,7 @@ BEGIN
                  THEN 'UPDATE' ELSE 'INSERT' END);
 END;
 GO
-```
 
-#### 3. Script to Execute the Stored Procedure for Each Row from BINS2
-
-Here we avoid inserting into the identity column and add the `IF EXISTS` check for the temporary table:
-
-```sql
 -- If the temporary table exists, drop it
 IF OBJECT_ID('tempdb..#BINS2Data') IS NOT NULL
     DROP TABLE #BINS2Data;
@@ -79,37 +62,40 @@ INTO #BINS2Data
 FROM BINS2.BINS2.MyView;
 GO
 
+-- Deduplicate the source data
+SELECT RequestID, RequestStatus, COUNT(*) AS RowCount
+INTO #DeduplicatedBINS2Data
+FROM #BINS2Data
+GROUP BY RequestID, RequestStatus;
+GO
+
 -- Perform the upsert operations
 MERGE INTO STCS.MyTable AS target
 USING (SELECT RequestID, RequestStatusID
-       FROM #BINS2Data src
+       FROM #DeduplicatedBINS2Data src
        JOIN STCS.RequestStatusTable rst
        ON src.RequestStatus = rst.RequestStatus) AS source
 ON (target.RequestID = source.RequestID)
 WHEN MATCHED THEN 
     UPDATE SET RequestStatusID = source.RequestStatusID
 WHEN NOT MATCHED THEN
-    INSERT (RequestStatusID)  -- Only insert columns that are not identity
-    VALUES (source.RequestStatusID);
+    INSERT (RequestID, RequestStatusID)
+    VALUES (source.RequestID, source.RequestStatusID);
 GO
 
 -- Log the operations
 INSERT INTO STCS.UpsertLog (RequestID, RequestStatus, Operation)
 SELECT RequestID, RequestStatus, 'UPSERT'
-FROM #BINS2Data;
+FROM #DeduplicatedBINS2Data;
 GO
 
--- Cleanup temporary table
+-- Cleanup temporary tables
 IF OBJECT_ID('tempdb..#BINS2Data') IS NOT NULL
     DROP TABLE #BINS2Data;
+IF OBJECT_ID('tempdb..#DeduplicatedBINS2Data') IS NOT NULL
+    DROP TABLE #DeduplicatedBINS2Data;
 GO
-```
 
-#### 4. Validation Queries
-
-##### Validation Query: Verify the Data in STCS
-
-```sql
 -- Validation Query: Verify the data in STCS
 SELECT RequestID, RequestStatus
 INTO #BINS2Data
@@ -133,11 +119,7 @@ WHERE a.RequestStatus <> b.RequestStatus
 DROP TABLE #BINS2Data;
 DROP TABLE #STCSData;
 GO
-```
 
-##### Row Count Validation
-
-```sql
 -- Row Count Validation
 SELECT COUNT(*) AS BINS2RowCount
 FROM BINS2.BINS2.MyView;
@@ -145,24 +127,9 @@ FROM BINS2.BINS2.MyView;
 SELECT COUNT(*) AS STCSRowCount
 FROM STCS.STCS.MyTable;
 GO
-```
 
-##### Query to Review Logs
-
-```sql
 -- Query to review logs
 SELECT *
 FROM STCS.UpsertLog
 ORDER BY Timestamp DESC;
 GO
-```
-
-### Summary
-
-This updated script ensures:
-1. **Log Table Creation**: The log table is available for the stored procedure.
-2. **Stored Procedure Creation**: Sets up the procedure that will handle the upsert and logging operations.
-3. **Set-Based Upsert Execution**: Avoids inserting into the identity column and includes checks for the existence of the temporary table before creation and cleanup.
-4. **Validation Queries**: Checks the correctness of the upsert operations and reviews the logs.
-
-Running these scripts in the specified order ensures that the necessary infrastructure is in place before executing the upsert operations and that validation steps are performed to verify the correctness of the process.
