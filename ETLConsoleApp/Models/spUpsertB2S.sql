@@ -82,12 +82,6 @@ CLOSE db_cursor;
 DEALLOCATE db_cursor;
 GO
 
--- Log the operations
-INSERT INTO STCS.UpsertLog (RequestID, RequestStatus, Operation)
-SELECT RequestID, RequestStatus, 'UPDATE'
-FROM #DeduplicatedBINS2Data;
-GO
-
 -- Cleanup temporary tables
 IF OBJECT_ID('tempdb..#BINS2Data') IS NOT NULL
     DROP TABLE #BINS2Data;
