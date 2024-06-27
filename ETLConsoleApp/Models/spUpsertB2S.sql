@@ -17,7 +17,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @RequestStatusID INT
+    DECLARE @RequestStatusID INT;
 
     -- Retrieve RequestStatusID from RequestStatusTable
     SELECT @RequestStatusID = RequestStatusID 
