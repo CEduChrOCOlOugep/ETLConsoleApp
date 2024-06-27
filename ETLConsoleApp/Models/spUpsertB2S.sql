@@ -1,8 +1,8 @@
-Thank you for the clarification. Given that `BINS2.MyView` contains `RequestID` and `RequestStatus`, and that `STCS.MyTable` contains `RequestID` and `RequestStatusID`, we need to handle the conversion between `RequestStatus` and `RequestStatusID` in the upsert procedure.
 
-### Consolidated Script
 
-```sql
+--Consolidated Script
+
+
 -- Log table creation in STCS
 CREATE TABLE STCS.UpsertLog (
     LogID INT IDENTITY(1,1) PRIMARY KEY,
@@ -124,13 +124,127 @@ ORDER BY Timestamp DESC;
 GO
 ```
 
-### Explanation
+### Optimization
+###
+The slow performance of the stored procedure execution before the validation queries could be due to several factors. Here are some common reasons and potential solutions:
 
-1. **Log Table Creation in STCS**: Create a log table `STCS.UpsertLog` to record the upsert operations.
-2. **Stored Procedure in STCS**: The stored procedure `STCS.MyUpsertProcedure` accepts `RequestID` and `RequestStatus`. It retrieves `RequestStatusID` from `STCS.RequestStatusTable`. If `RequestStatusID` is not found, an error is raised. It then upserts the data into `STCS.MyTable` and logs the operation.
-3. **Cursor to Execute the Stored Procedure**: This script iterates over each row in the view from `BINS2` and calls the stored procedure in `STCS`, passing `RequestID` and `RequestStatus`.
-4. **Validation Query**: This query selects data from `BINS2` and `STCS`, including an inner join to fetch `RequestStatus`. It compares the `RequestStatus` between `BINS2` and `STCS` to identify discrepancies.
-5. **Row Count Validation**: This step checks if the row counts match between `BINS2` view and `STCS` table.
-6. **Review Logs**: This query reviews the logs to ensure the operations were performed correctly.
+### 1. **Cursor Usage**
+Cursors can be slow, especially when processing a large number of rows. They perform row-by-row operations, which are inherently slower than set-based operations.
 
-By running this consolidated script, you can ensure the data is correctly upserted from `BINS2` to `STCS` and validate the operation.
+### 2. **Lack of Indexes**
+If the tables involved in the stored procedure do not have proper indexing, the `SELECT`, `UPDATE`, and `INSERT` operations can be very slow.
+
+### 3. **Complex Joins and Lookups**
+The stored procedure performs lookups and joins, which can be slow if the underlying tables are large and not properly indexed.
+
+### 4. **Logging Overhead**
+Inserting into the log table for every operation can add overhead, especially if there are a lot of rows being processed.
+
+### 5. **Network Latency**
+If there are network issues or if the databases are on different servers (which you mentioned is not the case here), it can slow down the process.
+
+### Optimizing the Stored Procedure Execution
+
+Here are some steps to optimize the stored procedure execution:
+
+#### 1. Use Set-Based Operations Instead of Cursors
+Instead of using a cursor, you can perform the upsert operations using set-based operations. This is usually much faster.
+
+#### 2. Ensure Proper Indexing
+Make sure that `RequestID` and `RequestStatusID` columns are indexed in `STCS.MyTable` and `STCS.RequestStatusTable`.
+
+#### 3. Batch Processing
+If you must use row-by-row processing, consider processing the data in smaller batches.
+
+### Example: Optimized Set-Based Operation
+
+Here's an example of how you might rewrite the process to use set-based operations instead of a cursor:
+
+#### Create a Temporary Table to Hold the Data from BINS2
+
+```sql
+-- Create a temporary table to hold the data from BINS2
+SELECT RequestID, RequestStatus
+INTO #BINS2Data
+FROM BINS2.BINS2.MyView;
+GO
+```
+
+#### Perform the Upsert Operations in a Set-Based Manner
+
+```sql
+-- Perform the upsert operations
+MERGE INTO STCS.MyTable AS target
+USING (SELECT RequestID, RequestStatusID
+       FROM #BINS2Data src
+       JOIN STCS.RequestStatusTable rst
+       ON src.RequestStatus = rst.RequestStatus) AS source
+ON (target.RequestID = source.RequestID)
+WHEN MATCHED THEN 
+    UPDATE SET RequestStatusID = source.RequestStatusID
+WHEN NOT MATCHED THEN
+    INSERT (RequestID, RequestStatusID)
+    VALUES (source.RequestID, source.RequestStatusID);
+
+-- Log the operations (if needed, can be optimized as well)
+INSERT INTO STCS.UpsertLog (RequestID, RequestStatus, Operation)
+SELECT RequestID, RequestStatus, 'UPSERT'
+FROM #BINS2Data;
+GO
+```
+
+### Validation Queries
+
+#### Validation Query: Verify the Data in STCS
+
+```sql
+-- Validation Query: Verify the data in STCS
+SELECT RequestID, RequestStatus
+INTO #BINS2Data
+FROM BINS2.BINS2.MyView;
+
+SELECT mt.RequestID, rst.RequestStatus
+INTO #STCSData
+FROM STCS.STCS.MyTable mt
+INNER JOIN STCS.STCS.RequestStatusTable rst ON mt.RequestStatusID = rst.RequestStatusID;
+
+SELECT 
+    a.RequestID AS BINS2_RequestID, 
+    a.RequestStatus AS BINS2_RequestStatus, 
+    b.RequestID AS STCS_RequestID, 
+    b.RequestStatus AS STCS_RequestStatus
+FROM #BINS2Data a
+LEFT JOIN #STCSData b ON a.RequestID = b.RequestID
+WHERE a.RequestStatus <> b.RequestStatus
+   OR b.RequestID IS NULL;
+
+DROP TABLE #BINS2Data;
+DROP TABLE #STCSData;
+GO
+```
+
+### Row Count Validation
+
+```sql
+-- Row Count Validation
+SELECT COUNT(*) AS BINS2RowCount
+FROM BINS2.BINS2.MyView;
+
+SELECT COUNT(*) AS STCSRowCount
+FROM STCS.STCS.MyTable;
+GO
+```
+
+### Query to Review Logs
+
+```sql
+-- Query to review logs
+SELECT *
+FROM STCS.UpsertLog
+ORDER BY Timestamp DESC;
+GO
+```
+
+### Summary
+
+This optimized approach avoids using a cursor and performs the upsert operations in a set-based manner, which should be much faster. Ensure that proper indexing is in place to further optimize the performance. By following these steps, you should see a significant improvement in the performance of the stored procedure execution.
