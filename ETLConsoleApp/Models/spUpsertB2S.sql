@@ -1,81 +1,8 @@
--- Declare variables for the columns from the view
-DECLARE @id INT, @name NVARCHAR(50), @value NVARCHAR(50), @date DATETIME, @description NVARCHAR(255), @status NVARCHAR(20)
+Certainly! Here is the consolidated script that includes the relevant steps and uses the correct database names and schemas:
 
--- Declare a cursor to iterate over the data from the view in DB1
-DECLARE db_cursor CURSOR FOR
-SELECT id, name, value, date, description, status
-FROM DB1.dbo.MyView
-
-OPEN db_cursor
-FETCH NEXT FROM db_cursor INTO @id, @name, @value, @date, @description, @status
-
-WHILE @@FETCH_STATUS = 0
-BEGIN
-    -- Call the stored procedure in DB2 for each row
-    EXEC DB2.dbo.MyUpsertProcedure @id, @name, @value, @date, @description, @status
-    
-    FETCH NEXT FROM db_cursor INTO @id, @name, @value, @date, @description, @status
-END
-
-CLOSE db_cursor
-DEALLOCATE db_cursor
-
-To validate that the stored procedure in DB2 worked as intended, you can perform several steps to verify that the data has been correctly upserted. Here are some methods to ensure the integrity and correctness of the operation:
-
-### 1. Verify the Data in DB2
-
-You can create a validation query to compare the data in DB2 with the data from the view in DB1. This query will help you identify any discrepancies between the source and destination data.
-
-#### Example Validation Query
 ```sql
--- Select data from DB1 view
-SELECT RequestID, RequestStatus
-INTO #DB1Data
-FROM DB1.dbo.MyView;
-
--- Select data from DB2 table (assuming the table is named dbo.MyTable)
-SELECT RequestID, RequestStatus
-INTO #DB2Data
-FROM DB2.dbo.MyTable;
-
--- Compare the data
-SELECT 
-    a.RequestID AS DB1_RequestID, 
-    a.RequestStatus AS DB1_RequestStatus, 
-    b.RequestID AS DB2_RequestID, 
-    b.RequestStatus AS DB2_RequestStatus
-FROM #DB1Data a
-LEFT JOIN #DB2Data b ON a.RequestID = b.RequestID
-WHERE a.RequestStatus <> b.RequestStatus
-   OR b.RequestID IS NULL;
-
--- Cleanup temporary tables
-DROP TABLE #DB1Data;
-DROP TABLE #DB2Data;
-```
-
-### 2. Check Row Counts
-
-Ensure that the number of rows in the view from DB1 matches the number of rows updated or inserted in DB2.
-
-#### Example Row Count Validation
-```sql
--- Count rows in DB1 view
-SELECT COUNT(*) AS DB1RowCount
-FROM DB1.dbo.MyView;
-
--- Count rows in DB2 table (assuming the table is named dbo.MyTable)
-SELECT COUNT(*) AS DB2RowCount
-FROM DB2.dbo.MyTable;
-```
-
-### 3. Use Output Parameters or Return Values in the Stored Procedure
-
-Modify the stored procedure to include output parameters or return values indicating the number of rows inserted, updated, or any errors encountered.
-
-#### Example Stored Procedure Modification
-```sql
-CREATE PROCEDURE dbo.MyUpsertProcedure
+-- Create the stored procedure in STCS
+CREATE PROCEDURE STCS.MyUpsertProcedure
     @RequestID VARCHAR(MAX),
     @RequestStatus VARCHAR(MAX),
     @RowsAffected INT OUTPUT
@@ -83,10 +10,10 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    IF EXISTS (SELECT 1 FROM dbo.MyTable WHERE RequestID = @RequestID)
+    IF EXISTS (SELECT 1 FROM STCS.MyTable WHERE RequestID = @RequestID)
     BEGIN
         -- Update existing record
-        UPDATE dbo.MyTable
+        UPDATE STCS.MyTable
         SET RequestStatus = @RequestStatus
         WHERE RequestID = @RequestID;
 
@@ -95,96 +22,120 @@ BEGIN
     ELSE
     BEGIN
         -- Insert new record
-        INSERT INTO dbo.MyTable (RequestID, RequestStatus)
+        INSERT INTO STCS.MyTable (RequestID, RequestStatus)
         VALUES (@RequestID, @RequestStatus);
 
         SET @RowsAffected = @@ROWCOUNT;
     END
 END;
-```
+GO
 
-### 4. Log the Results
-
-Log the results of each upsert operation into a logging table for later review.
-
-#### Example Logging Table
-```sql
-CREATE TABLE dbo.UpsertLog (
+-- Log table creation in STCS
+CREATE TABLE STCS.UpsertLog (
     LogID INT IDENTITY(1,1) PRIMARY KEY,
     RequestID VARCHAR(MAX),
     RequestStatus VARCHAR(MAX),
     Operation VARCHAR(10),
     Timestamp DATETIME DEFAULT GETDATE()
 );
-```
+GO
 
-#### Example Stored Procedure with Logging
-```sql
-CREATE PROCEDURE dbo.MyUpsertProcedure
+-- Update the stored procedure to include logging
+CREATE PROCEDURE STCS.MyUpsertProcedure
     @RequestID VARCHAR(MAX),
     @RequestStatus VARCHAR(MAX)
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    IF EXISTS (SELECT 1 FROM dbo.MyTable WHERE RequestID = @RequestID)
+    IF EXISTS (SELECT 1 FROM STCS.MyTable WHERE RequestID = @RequestID)
     BEGIN
         -- Update existing record
-        UPDATE dbo.MyTable
+        UPDATE STCS.MyTable
         SET RequestStatus = @RequestStatus
         WHERE RequestID = @RequestID;
 
         -- Log the update operation
-        INSERT INTO dbo.UpsertLog (RequestID, RequestStatus, Operation)
+        INSERT INTO STCS.UpsertLog (RequestID, RequestStatus, Operation)
         VALUES (@RequestID, @RequestStatus, 'UPDATE');
     END
     ELSE
     BEGIN
         -- Insert new record
-        INSERT INTO dbo.MyTable (RequestID, RequestStatus);
+        INSERT INTO STCS.MyTable (RequestID, RequestStatus);
 
         -- Log the insert operation
-        INSERT INTO dbo.UpsertLog (RequestID, RequestStatus, Operation)
+        INSERT INTO STCS.UpsertLog (RequestID, RequestStatus, Operation)
         VALUES (@RequestID, @RequestStatus, 'INSERT');
     END
 END;
-```
+GO
 
-### 5. Review Logs and Results
+-- Script to execute the stored procedure for each row from BINS2
+DECLARE @RequestID VARCHAR(MAX), @RequestStatus VARCHAR(MAX), @RowsAffected INT
 
-After running the upsert operations, review the logs to ensure that the operations were performed correctly.
-
-#### Query to Review Logs
-```sql
-SELECT *
-FROM dbo.UpsertLog
-ORDER BY Timestamp DESC;
-```
-
-By implementing these validation steps, you can ensure that the stored procedure is working as intended and that the data has been accurately upserted from DB1 to DB2.
-
--- Select data from DB1 view
+DECLARE db_cursor CURSOR FOR
 SELECT RequestID, RequestStatus
-INTO #DB1Data
-FROM DB1.dbo.MyView;
+FROM BINS2.BINS2.MyView
 
--- Select data from DB2 table with inner join to get RequestStatus
+OPEN db_cursor
+FETCH NEXT FROM db_cursor INTO @RequestID, @RequestStatus
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    EXEC STCS.MyUpsertProcedure @RequestID, @RequestStatus, @RowsAffected OUTPUT
+    PRINT 'Rows affected: ' + CAST(@RowsAffected AS VARCHAR(MAX))
+    FETCH NEXT FROM db_cursor INTO @RequestID, @RequestStatus
+END
+
+CLOSE db_cursor
+DEALLOCATE db_cursor
+GO
+
+-- Validation Query: Verify the data in STCS
+SELECT RequestID, RequestStatus
+INTO #BINS2Data
+FROM BINS2.BINS2.MyView;
+
 SELECT mt.RequestID, rst.RequestStatus
-INTO #DB2Data
-FROM DB2.dbo.MyTable mt
-INNER JOIN DB2.dbo.RequestStatusTable rst ON mt.RequestStatusID = rst.RequestStatusID;
+INTO #STCSData
+FROM STCS.STCS.MyTable mt
+INNER JOIN STCS.STCS.RequestStatusTable rst ON mt.RequestStatusID = rst.RequestStatusID;
 
--- Compare the data
 SELECT 
-    a.RequestID AS DB1_RequestID, 
-    a.RequestStatus AS DB1_RequestStatus, 
-    b.RequestID AS DB2_RequestID, 
-    b.RequestStatus AS DB2_RequestStatus
-FROM #DB1Data a
-LEFT JOIN #DB2Data b ON a.RequestID = b.RequestID
+    a.RequestID AS BINS2_RequestID, 
+    a.RequestStatus AS BINS2_RequestStatus, 
+    b.RequestID AS STCS_RequestID, 
+    b.RequestStatus AS STCS_RequestStatus
+FROM #BINS2Data a
+LEFT JOIN #STCSData b ON a.RequestID = b.RequestID
 WHERE a.RequestStatus <> b.RequestStatus
    OR b.RequestID IS NULL;
 
--- Cleanup temporary tables
-DROP TABLE #DB1Data;
-DROP TABLE #DB2Data;
+DROP TABLE #BINS2Data;
+DROP TABLE #STCSData;
+GO
+
+-- Row Count Validation
+SELECT COUNT(*) AS BINS2RowCount
+FROM BINS2.BINS2.MyView;
+
+SELECT COUNT(*) AS STCSRowCount
+FROM STCS.STCS.MyTable;
+GO
+
+-- Query to review logs
+SELECT *
+FROM STCS.UpsertLog
+ORDER BY Timestamp DESC;
+GO
+```
+
+This script covers the following:
+1. **Creation of the stored procedure in STCS with logging.**
+2. **Cursor to read data from BINS2 and call the stored procedure in STCS.**
+3. **Validation query to compare data between BINS2 and STCS.**
+4. **Row count validation.**
+5. **Query to review the logs in the logging table.**
+
+By running this script, you can ensure that the data is correctly upserted from BINS2 to STCS and validate the operation.
