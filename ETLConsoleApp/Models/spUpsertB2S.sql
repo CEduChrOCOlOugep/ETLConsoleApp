@@ -16,42 +16,58 @@ GO
 
 -- Create the stored procedure in BINS2 with logging and error handling
 CREATE PROCEDURE BINS2.MyUpsertProcedure
-    @RequestID VARCHAR(MAX),
-    @RequestStatus VARCHAR(MAX),
-    @Column1 VARCHAR(MAX),
-    @Column2 VARCHAR(MAX),
-    @RowsAffected INT OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @RequestStatusID INT;
+    -- Temporary table to store results of the join
+    IF OBJECT_ID('tempdb..#TempResult') IS NOT NULL
+        DROP TABLE #TempResult;
+    
+    CREATE TABLE #TempResult (
+        RequestID VARCHAR(MAX),
+        RequestStatusID INT,
+        Column1 VARCHAR(MAX),
+        Column2 VARCHAR(MAX)
+    );
 
-    -- Retrieve RequestStatusID from STCS.RequestStatusTable
-    SELECT @RequestStatusID = RequestStatusID 
-    FROM STCS.RequestStatusTable 
-    WHERE RequestStatus = @RequestStatus;
+    -- Join the source data with the RequestStatusTable to get the RequestStatusID
+    INSERT INTO #TempResult (RequestID, RequestStatusID, Column1, Column2)
+    SELECT src.RequestID, rst.RequestStatusID, src.Column1, src.Column2
+    FROM #DeduplicatedBINS2Data src
+    LEFT JOIN STCS.RequestStatusTable rst
+    ON src.RequestStatus = rst.RequestStatus
+    WHERE rst.RequestStatusID IS NOT NULL;
 
-    IF @RequestStatusID IS NULL
-    BEGIN
-        -- Log the case where RequestStatusID is not found
-        RAISERROR('RequestStatusID not found for RequestStatus: %s', 16, 1, @RequestStatus);
-        INSERT INTO BINS2.UpsertLog (RequestID, RequestStatus, Operation, Column1, Column2)
-        VALUES (@RequestID, @RequestStatus, 'RequestStatusID not found', @Column1, @Column2);
-        RETURN;
-    END
-
-    -- Update operation in STCS.Requests
-    UPDATE STCS.Requests
-    SET RequestStatusID = @RequestStatusID
-    WHERE RequestID = @RequestID;
-
-    SET @RowsAffected = @@ROWCOUNT;
+    -- Update operation in STCS.Requests using the temporary result
+    UPDATE target
+    SET target.RequestStatusID = source.RequestStatusID
+    FROM STCS.Requests AS target
+    INNER JOIN #TempResult AS source
+    ON target.RequestID = source.RequestID;
 
     -- Log the operation in BINS2.UpsertLog
     INSERT INTO BINS2.UpsertLog (RequestID, RequestStatus, Operation, Column1, Column2)
-    VALUES (@RequestID, @RequestStatus, 
-            CASE WHEN @RowsAffected > 0 THEN 'UPDATE' ELSE 'NO CHANGE' END, @Column1, @Column2);
+    SELECT src.RequestID, src.RequestStatus, 
+           CASE WHEN target.RequestID IS NOT NULL THEN 'UPDATE' ELSE 'NO CHANGE' END, 
+           src.Column1, src.Column2
+    FROM #DeduplicatedBINS2Data src
+    LEFT JOIN #TempResult trg
+    ON src.RequestID = trg.RequestID
+    LEFT JOIN STCS.Requests target
+    ON src.RequestID = target.RequestID;
+
+    -- Log the cases where RequestStatusID is not found
+    INSERT INTO BINS2.UpsertLog (RequestID, RequestStatus, Operation, Column1, Column2)
+    SELECT src.RequestID, src.RequestStatus, 'RequestStatusID not found', src.Column1, src.Column2
+    FROM #DeduplicatedBINS2Data src
+    LEFT JOIN STCS.RequestStatusTable rst
+    ON src.RequestStatus = rst.RequestStatus
+    WHERE rst.RequestStatusID IS NULL;
+
+    -- Cleanup temporary table
+    IF OBJECT_ID('tempdb..#TempResult') IS NOT NULL
+        DROP TABLE #TempResult;
 END;
 GO
 
@@ -72,24 +88,8 @@ INTO #DeduplicatedBINS2Data
 FROM #BINS2Data;
 GO
 
--- Perform the update operations
-DECLARE @RequestID VARCHAR(MAX), @RequestStatus VARCHAR(MAX), @Column1 VARCHAR(MAX), @Column2 VARCHAR(MAX), @RowsAffected INT;
-
-DECLARE db_cursor CURSOR FOR
-SELECT RequestID, RequestStatus, Column1, Column2
-FROM #DeduplicatedBINS2Data;
-
-OPEN db_cursor;
-FETCH NEXT FROM db_cursor INTO @RequestID, @RequestStatus, @Column1, @Column2;
-
-WHILE @@FETCH_STATUS = 0
-BEGIN
-    EXEC BINS2.MyUpsertProcedure @RequestID, @RequestStatus, @Column1, @Column2, @RowsAffected OUTPUT;
-    FETCH NEXT FROM db_cursor INTO @RequestID, @RequestStatus, @Column1, @Column2;
-END;
-
-CLOSE db_cursor;
-DEALLOCATE db_cursor;
+-- Perform the update operations using the optimized stored procedure
+EXEC BINS2.MyUpsertProcedure;
 GO
 
 -- Cleanup temporary tables
